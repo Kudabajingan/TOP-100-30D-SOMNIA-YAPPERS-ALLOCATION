@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Share Allocation Lookup</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for Inter font and custom styling -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#4f46e5',
+                        'secondary': '#60a5fa',
+                        'background': '#f3f4f6',
+                        'card-bg': '#ffffff',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for better aesthetics */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #9ca3af;
+            border-radius: 20px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #e5e7eb;
+        }
+    </style>
+</head>
+<body class="bg-background min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <div class="w-full max-w-2xl bg-card-bg p-8 md:p-10 rounded-xl shadow-2xl space-y-8">
+        <header class="text-center">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2">Allocation Lookup Tool</h1>
+            <p class="text-gray-500">Search for any of the 100 participants to see their share of the 15,000 SOMI pool.</p>
+        </header>
+
+        <!-- Search Input Section -->
+        <div class="flex flex-col md:flex-row gap-4">
+            <input type="text" id="participantName" placeholder="Enter participant name (e.g., world_invade)"
+                   class="flex-grow p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-800 transition duration-150"
+                   onkeydown="if(event.key === 'Enter') searchAllocation()">
+            <button id="searchButton" onclick="searchAllocation()"
+                    class="bg-primary hover:bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-[1.02]">
+                Search Allocation
+            </button>
+        </div>
+
+        <!-- Result Display Section -->
+        <div id="resultContainer" class="min-h-[100px] border-t pt-6 border-gray-200">
+            <div id="resultOutput" class="space-y-4 hidden">
+                <h2 class="text-2xl font-bold text-gray-700">Allocation for <span id="outputName" class="text-primary"></span>:</h2>
+
+                <div class="grid grid-cols-2 gap-4 text-center">
+                    <!-- Share Amount Card -->
+                    <div class="bg-blue-50 p-4 rounded-xl shadow-lg border-b-4 border-secondary">
+                        <p class="text-sm font-medium text-gray-500">Share Amount</p>
+                        <p id="outputShare" class="text-3xl font-extrabold text-secondary mt-1">0.00 SOMI</p>
+                    </div>
+
+                    <!-- Percentage Card -->
+                    <div class="bg-green-50 p-4 rounded-xl shadow-lg border-b-4 border-green-500">
+                        <p class="text-sm font-medium text-gray-500">Percentage</p>
+                        <p id="outputPercent" class="text-3xl font-extrabold text-green-600 mt-1">0.00%</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Initial/Error Message -->
+            <div id="messageOutput" class="text-center p-4">
+                <p class="text-gray-500 italic">Enter a name to begin your search.</p>
+            </div>
+        </div>
+        
+        <!-- Full List Display (Optional, but helpful for verification) -->
+        <div class="mt-8">
+            <h3 class="text-xl font-semibold text-gray-700 mb-3 border-b pb-2">Full Participant List (100)</h3>
+            <div id="listContainer" class="h-64 overflow-y-scroll custom-scrollbar bg-gray-50 rounded-lg p-3 border">
+                <!-- List will be populated by JS -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATASET: Full allocation list derived from the previous step ---
+        // Key: Handle (lowercase, no @) | Value: { percent: string, share: number }
+        const ALLOCATIONS = {
+            "world_invade": { "percent": "2.9520%", "share": 764.83 },
+            "gratefulape": { "percent": "1.8847%", "share": 488.31 },
+            "ericclfung": { "percent": "1.7641%", "share": 457.06 },
+            "tiur_eth": { "percent": "1.7293%", "share": 448.04 },
+            "kudabajingan": { "percent": "1.5778%", "share": 408.79 },
+            "quanm2831": { "percent": "1.3880%", "share": 359.62 },
+            "elphie_l": { "percent": "1.3015%", "share": 337.21 },
+            "unbothered9000": { "percent": "1.1576%", "share": 299.92 },
+            "hyperxoscar": { "percent": "1.0607%", "share": 274.82 },
+            "jundokaito": { "percent": "1.0188%", "share": 263.96 },
+            "0xsofiya": { "percent": "0.9617%", "share": 249.20 },
+            "mbexbt": { "percent": "0.9457%", "share": 245.08 },
+            "jgonzalezferrer": { "percent": "0.9317%", "share": 241.46 },
+            "kaitoxbt": { "percent": "0.9192%", "share": 238.22 },
+            "thanistarr": { "percent": "0.9107%", "share": 236.03 },
+            "evilhhai88": { "percent": "0.8889%", "share": 230.38 },
+            "mr_samuel01": { "percent": "0.8863%", "share": 229.71 },
+            "crazino87": { "percent": "0.8805%", "share": 228.20 },
+            "kiksman_": { "percent": "0.8729%", "share": 226.24 },
+            "cjay_btc": { "percent": "0.8654%", "share": 224.31 },
+            "desola__xn": { "percent": "0.8101%", "share": 209.85 },
+            "jpegbeekind": { "percent": "0.7709%", "share": 199.69 },
+            "derick_connect": { "percent": "0.7451%", "share": 192.97 },
+            "nikkisixx_7": { "percent": "0.7380%", "share": 191.13 },
+            "ffvv1211": { "percent": "0.7266%", "share": 188.16 },
+            "promisegamefi": { "percent": "0.7164%", "share": 185.52 },
+            "mookienft": { "percent": "0.6824%", "share": 176.71 },
+            "toylan20": { "percent": "0.6819%", "share": 176.58 },
+            "timon_nick": { "percent": "0.6814%", "share": 176.45 },
+            "vasyl_khlibko": { "percent": "0.6521%", "share": 168.86 },
+            "guaremperor": { "percent": "0.6376%", "share": 165.12 },
+            "teaonax": { "percent": "0.6287%", "share": 162.83 },
+            "layerle0": { "percent": "0.6043%", "share": 156.59 },
+            "cliff3verse": { "percent": "0.6038%", "share": 156.46 },
+            "kryptomokus": { "percent": "0.5995%", "share": 155.35 },
+            "drew589_eth": { "percent": "0.5694%", "share": 147.56 },
+            "teaonchain": { "percent": "0.5358%", "share": 138.86 },
+            "zeenatweb3": { "percent": "0.5280%", "share": 136.85 },
+            "artificialsham1": { "percent": "0.5189%", "share": 134.48 },
+            "djemmm_eth": { "percent": "0.5008%", "share": 129.83 },
+            "cryptousopp": { "percent": "0.4970%", "share": 128.85 },
+            "faruuq_1": { "percent": "0.4879%", "share": 126.47 },
+            "lovaniceth": { "percent": "0.4853%", "share": 125.80 },
+            "tessweb3_": { "percent": "0.4836%", "share": 125.37 },
+            "0x_empire": { "percent": "0.4754%", "share": 123.27 },
+            "0xrory": { "percent": "0.4684%", "share": 121.46 },
+            "elvin82el": { "percent": "0.4649%", "share": 120.56 },
+            "imenlikovaog": { "percent": "0.4546%", "share": 117.91 },
+            "legbo_": { "percent": "0.4443%", "share": 115.26 },
+            "0x_trophy": { "percent": "0.4131%", "share": 107.03 },
+            "carlxbt": { "percent": "0.4096%", "share": 106.14 },
+            "ioachimviju": { "percent": "0.3996%", "share": 103.55 },
+            "xakerneo1": { "percent": "0.3912%", "share": 101.37 },
+            "heistruthx": { "percent": "0.3812%", "share": 98.78 },
+            "avarinjung": { "percent": "0.3766%", "share": 97.59 },
+            "deestar": { "percent": "0.3728%", "share": 96.61 },
+            "0xrohitx": { "percent": "0.3603%", "share": 93.38 },
+            "andrewvas001": { "percent": "0.3597%", "share": 93.22 },
+            "0xrimas": { "percent": "0.3555%", "share": 92.14 },
+            "wyckoffweb": { "percent": "0.3516%", "share": 91.13 },
+            "top_crypto_nft": { "percent": "0.3509%", "share": 90.95 },
+            "kobeph": { "percent": "0.3496%", "share": 90.62 },
+            "the_whisper_er": { "percent": "0.3482%", "share": 90.26 },
+            "zarafatoluu": { "percent": "0.3420%", "share": 88.66 },
+            "tuyendevt": { "percent": "0.3383%", "share": 87.70 },
+            "coachdeeng": { "percent": "0.3320%", "share": 86.07 },
+            "kalp8955": { "percent": "0.3239%", "share": 83.98 },
+            "fadedreen": { "percent": "0.3219%", "share": 83.47 },
+            "nguyenduc130185": { "percent": "0.3115%", "share": 80.79 },
+            "akiraryukyu": { "percent": "0.3101%", "share": 80.43 },
+            "favochino23": { "percent": "0.3094%", "share": 80.25 },
+            "hoangtrungds": { "percent": "0.3067%", "share": 79.55 },
+            "fair005_art": { "percent": "0.3044%", "share": 78.96 },
+            "dashke_witch": { "percent": "0.3004%", "share": 77.92 },
+            "haiman_r": { "percent": "0.3000%", "share": 77.82 },
+            "litethex": { "percent": "0.2950%", "share": 76.53 },
+            "blokoliemir": { "percent": "0.2935%", "share": 76.14 },
+            "ronaldomen4691": { "percent": "0.2932%", "share": 76.06 },
+            "karn_bored": { "percent": "0.2920%", "share": 75.75 },
+            "zeno_saputr": { "percent": "0.2888%", "share": 74.92 },
+            "kingcrypt_": { "percent": "0.2860%", "share": 74.20 },
+            "softlink_web3": { "percent": "0.2843%", "share": 73.76 },
+            "vikking0909": { "percent": "0.2827%", "share": 73.35 },
+            "ayanahmed83": { "percent": "0.2813%", "share": 72.99 },
+            "jude_malak": { "percent": "0.2786%", "share": 72.30 },
+            "calc_guy": { "percent": "0.2755%", "share": 71.50 },
+            "duongdong_leka": { "percent": "0.2692%", "share": 69.87 },
+            "balt_ik": { "percent": "0.2656%", "share": 68.94 },
+            "web3_tree": { "percent": "0.2655%", "share": 68.91 },
+            "cryptoallstar": { "percent": "0.2648%", "share": 68.73 },
+            "riddlerthecat": { "percent": "0.2645%", "share": 68.65 },
+            "cryptolorenzo2k": { "percent": "0.2596%", "share": 67.38 },
+            "enejitrust": { "percent": "0.2585%", "share": 67.10 },
+            "himesama_01": { "percent": "0.2572%", "share": 66.77 },
+            "kolcent": { "percent": "0.2567%", "share": 66.64 },
+            "otishieu": { "percent": "0.2559%", "share": 66.43 },
+            "trucnguyen1409": { "percent": "0.2553%", "share": 66.28 },
+            "readox_eth": { "percent": "0.2552%", "share": 66.25 },
+            "seongmoolee": { "percent": "0.2544%", "share": 66.05 },
+            "netobliss_web3": { "percent": "0.2506%", "share": 65.07 }
+        };
+
+        const participantInput = document.getElementById('participantName');
+        const resultContainer = document.getElementById('resultContainer');
+        const resultOutput = document.getElementById('resultOutput');
+        const messageOutput = document.getElementById('messageOutput');
+        const outputName = document.getElementById('outputName');
+        const outputShare = document.getElementById('outputShare');
+        const outputPercent = document.getElementById('outputPercent');
+        const listContainer = document.getElementById('listContainer');
+
+        /**
+         * Normalizes the input string for lookup.
+         * @param {string} name - The user input.
+         * @returns {string} The cleaned, lowercase key.
+         */
+        function normalizeName(name) {
+            return name.trim().toLowerCase().replace(/^@/, '');
+        }
+
+        /**
+         * Populates the full participant list for reference.
+         */
+        function populateList() {
+            let listHtml = '<table class="w-full text-sm text-left text-gray-600">';
+            listHtml += '<thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0"><tr class="border-b"><th scope="col" class="px-3 py-2">Name</th><th scope="col" class="px-3 py-2 text-right">Share</th><th scope="col" class="px-3 py-2 text-right">Percent</th></tr></thead><tbody>';
+            
+            // Convert object to array, sort by share amount (descending)
+            const sortedEntries = Object.entries(ALLOCATIONS)
+                .map(([name, data]) => ({ name: name, ...data }))
+                .sort((a, b) => b.share - a.share);
+
+            sortedEntries.forEach(item => {
+                const displayName = item.name.charAt(0).toUpperCase() + item.name.slice(1);
+                listHtml += `
+                    <tr class="bg-white border-b hover:bg-gray-50">
+                        <td class="px-3 py-2 font-medium text-gray-900">${displayName}</td>
+                        <td class="px-3 py-2 text-right">${item.share.toFixed(2)} SOMI</td>
+                        <td class="px-3 py-2 text-right">${item.percent}</td>
+                    </tr>
+                `;
+            });
+
+            listHtml += '</tbody></table>';
+            listContainer.innerHTML = listHtml;
+        }
+
+        /**
+         * Main function to search for the allocation.
+         */
+        function searchAllocation() {
+            const inputName = participantInput.value;
+            const lookupKey = normalizeName(inputName);
+
+            // Clear previous output
+            resultOutput.classList.add('hidden');
+            messageOutput.classList.remove('hidden');
+
+            if (!lookupKey) {
+                messageOutput.innerHTML = '<p class="text-red-500 font-medium">Please enter a participant name to search.</p>';
+                return;
+            }
+
+            const allocationData = ALLOCATIONS[lookupKey];
+
+            if (allocationData) {
+                // Success: Show the result cards
+                const originalName = lookupKey.charAt(0).toUpperCase() + lookupKey.slice(1); // Basic capitalization
+                
+                outputName.textContent = originalName;
+                outputShare.textContent = `${allocationData.share.toFixed(2)} SOMI`;
+                outputPercent.textContent = allocationData.percent;
+                
+                messageOutput.classList.add('hidden');
+                resultOutput.classList.remove('hidden');
+            } else {
+                // Error: Name not found
+                messageOutput.innerHTML = `<p class="text-red-500 font-medium">Participant "<span class="font-bold">${inputName}</span>" not found in the list.</p>
+                                          <p class="text-sm text-gray-500 mt-2">Note: Names are case-insensitive and should not include the "@" symbol.</p>`;
+            }
+        }
+
+        // Initialize the app when the window loads
+        window.onload = populateList;
+
+    </script>
+</body>
+</html>
